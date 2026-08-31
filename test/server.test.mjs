@@ -127,28 +127,19 @@ test('OpenCode Zen sends curated free models to its OpenAI-compatible endpoint',
   }
 });
 
-test('chat rejects models outside the curated catalog', async () => {
-  const originalKey = process.env.OPENCODE_API_KEY;
-  process.env.OPENCODE_API_KEY = 'test-key';
-
-  try {
-    assert.equal(OPENCODE_FREE_MODELS.has('big-pickle'), true);
-    const response = responseRecorder();
-    await handleChat({
-      method: 'POST',
-      body: {
-        provider: 'opencode',
-        model: 'big-pickle',
-        harness: 'normal',
-        messages: [{ role: 'user', content: 'hola' }],
-      },
-    }, response);
-    assert.equal(response.status, 400);
-    assert.match(JSON.parse(response.body).error, /no permitido/);
-  } finally {
-    if (originalKey === undefined) delete process.env.OPENCODE_API_KEY;
-    else process.env.OPENCODE_API_KEY = originalKey;
-  }
+test('chat rejects unsupported providers', async () => {
+  const response = responseRecorder();
+  await handleChat({
+    method: 'POST',
+    body: {
+      provider: 'unknown',
+      model: 'some-model',
+      harness: 'normal',
+      messages: [{ role: 'user', content: 'hola' }],
+    },
+  }, response);
+  assert.equal(response.status, 400);
+  assert.match(JSON.parse(response.body).error, /Proveedor no permitido/);
 });
 
 test('models endpoint returns the fixed curated catalog in order', async () => {

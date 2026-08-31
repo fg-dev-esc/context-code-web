@@ -157,7 +157,7 @@
             <path d="M6 9a6 6 0 0 0 6 6M18 9a6 6 0 0 1-6 6"/>
           </svg>
         </button>
-        <button class="send-btn" id="sendBtn" aria-label="Enviar" title="Enviar (Ctrl+Alt+Enter)" disabled>
+        <button class="send-btn" id="sendBtn" aria-label="Enviar" title="Enviar" disabled>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round">
             <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
@@ -235,14 +235,14 @@
     const MODELS = [
       { id: 'openai/gpt-oss-120b', label: 'openai/gpt-oss-120b', provider: 'groq', tag: 'Groq' },
       { id: 'qwen/qwen3.6-27b', label: 'qwen/qwen3.6-27b', provider: 'groq', tag: 'Groq' },
-      { id: 'gemini-flash-latest', label: 'gemini-flash-latest', provider: 'google', tag: 'Google' },
-      { id: 'devstral-latest', label: 'devstral-latest', provider: 'mistral', tag: 'Mistral' },
-      { id: 'north-mini-code-1-0', label: 'north-mini-code-1-0', provider: 'cohere', tag: 'Cohere' },
+      { id: 'codestral-latest', label: 'codestral-latest', provider: 'mistral', tag: 'Mistral' },
+      { id: 'command-a-plus-05-2026', label: 'command-a-plus-05-2026', provider: 'cohere', tag: 'Cohere' },
+      // { id: 'gemini-flash-latest', label: 'gemini-flash-latest', provider: 'google', tag: 'Google' },
+      // { id: 'north-mini-code-1-0', label: 'north-mini-code-1-0', provider: 'cohere', tag: 'Cohere' },
       // { id: 'deepseek-v4-flash-free', label: 'deepseek-v4-flash-free', provider: 'opencode', tag: 'OpenCode' },
       // { id: 'mimo-v2.5-free', label: 'mimo-v2.5-free', provider: 'opencode', tag: 'OpenCode' },
       // { id: 'zai-glm-4.7', label: 'zai-glm-4.7', provider: 'cerebras', tag: 'Cerebras' },
       // { id: 'mistral-small-latest', label: 'mistral-small-latest', provider: 'mistral', tag: 'Mistral' },
-      // { id: 'command-a-reasoning-08-2025', label: 'command-a-reasoning-08-2025', provider: 'cohere', tag: 'Cohere' },
     ];
 
     const MAX_IMAGES = 5;
@@ -968,26 +968,12 @@
     }
 
     async function loadModels() {
-      try {
-        const response = await fetch('/api/models', { cache: 'no-store' });
-        if (!response.ok) throw new Error(`Catalogo respondio con ${response.status}`);
-        const payload = await response.json();
-        const curatedOrder = new Map(MODELS.map((model, index) => [modelKey(model), index]));
-        availableModels = payload.providers.flatMap(({ id, models }) => models.map(model => ({
-          id: model,
-          label: model,
-          provider: id,
-          tag: PROVIDERS.find(provider => provider.id === id)?.name || id,
-        }))).filter(model => curatedOrder.has(modelKey(model)));
-        availableModels.sort((left, right) => curatedOrder.get(modelKey(left)) - curatedOrder.get(modelKey(right)));
-        if (!availableModels.some(model => modelKey(model) === modelKey(selectedModel))) {
-          selectedModel = availableModels[0] || MODELS[0];
-          updateModelDisplay();
-        }
-        buildDropdown();
-      } catch (error) {
-        console.warn('No se pudo cargar el catalogo de modelos:', error);
+      availableModels = [...MODELS];
+      if (!availableModels.some(model => modelKey(model) === modelKey(selectedModel))) {
+        selectedModel = availableModels[0];
+        updateModelDisplay();
       }
+      buildDropdown();
     }
 
     function selectModel(m) {
@@ -998,9 +984,16 @@
       updateSendBtn();
     }
 
-    function openDropdown() {
+    function openDropdown(focusOption = false) {
       modelDropdown.classList.add('open');
       modelBtn.setAttribute('aria-expanded', 'true');
+      if (focusOption) {
+        const selectedKey = selectedModel && modelKey(selectedModel);
+        const selectedOption = selectedKey
+          ? dropdownBody.querySelector(`[data-model-key="${CSS.escape(selectedKey)}"]`)
+          : null;
+        (selectedOption || dropdownBody.querySelector('.model-option'))?.focus();
+      }
     }
     function closeDropdown() {
       modelDropdown.classList.remove('open');
@@ -2972,7 +2965,7 @@
         if (modelDropdown.classList.contains('open')) {
           closeDropdown();
         } else {
-          openDropdown();
+          openDropdown(true);
         }
         return;
       }
@@ -2995,9 +2988,11 @@
         return;
       }
 
-      if (e.ctrlKey && e.altKey && e.key === 'Enter') {
+      if (e.altKey && !e.ctrlKey && !e.shiftKey && !e.metaKey && e.key === 'Enter') {
         e.preventDefault();
-        if (chatInput.value.trim()) handleSend();
+        closeDropdown();
+        closeDrawer();
+        focusChatInput();
         return;
       }
 

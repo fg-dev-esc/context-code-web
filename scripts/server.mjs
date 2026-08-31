@@ -36,7 +36,7 @@ export const CURATED_MODELS = {
   // cerebras: ['gpt-oss-120b', 'zai-glm-4.7'],
   google: ['gemini-flash-latest'],
   mistral: ['mistral-small-latest', 'devstral-latest'],
-  cohere: ['north-mini-code-1-0', 'command-a-reasoning-08-2025'],
+  cohere: ['north-mini-code-1-0', 'command-a-03-2025', 'command-a-plus-05-2026', 'command-a-reasoning-08-2025'],
   opencode: ['mimo-v2.5-free', 'deepseek-v4-flash-free', 'north-mini-code-free'],
   groq: ['qwen/qwen3.6-27b', 'groq/compound-mini', 'llama-3.1-8b-instant', 'openai/gpt-oss-20b', 'openai/gpt-oss-120b'],
 };
@@ -123,8 +123,8 @@ export async function handleChat(req, res) {
 
   try {
     const { provider, model, harness = 'kata', messages = [], images = [], intent, evaluationContext } = await readJson(req);
-    if (!CURATED_MODELS[provider]?.includes(model)) {
-      return json(res, 400, { error: `Modelo no permitido: ${provider}/${model}` });
+    if (!PROVIDERS[provider]) {
+      return json(res, 400, { error: `Proveedor no permitido: ${provider}` });
     }
 
     if (intent === 'lesson_evaluate') {
