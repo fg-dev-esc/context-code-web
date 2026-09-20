@@ -253,7 +253,7 @@
     const COMPLETED_LESSON_STATUSES = new Set(['mastered', 'completed_supported']);
     const FORK_LESSON_MESSAGE_TYPES = new Set(['challenge', 'attempt', 'evaluation', 'solution']);
 
-    let selectedModel = MODELS.find(m => m.id === 'openai/gpt-oss-120b');
+    let selectedModel = MODELS.find(m => m.id === 'qwen/qwen3.8-27b');
     let availableModels = [...MODELS];
     let messages = [];
     const undoneTurns = new Map();
