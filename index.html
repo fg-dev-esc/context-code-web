@@ -101,6 +101,7 @@
     </main>
 
     <div class="input-area">
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
       <div class="image-attachments" id="imageAttachments">
         <div class="image-preview" id="imagePreview"></div>
         <span id="imageCounter"></span>
@@ -203,7 +204,6 @@
     </aside>
   </div>
 
-  <div class="toast" id="toast" role="alert"></div>
 
   <div class="confirm-overlay" id="deleteConfirmOverlay" aria-hidden="true">
     <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="deleteConfirmTitle">
@@ -1269,8 +1269,20 @@
           return await readJsonResponse(response);
         } catch (error) {
           if (error.status !== 429 || retry >= API_RATE_LIMIT_RETRIES) throw error;
-          showToast('Límite temporal de la API. Reintentando automáticamente en 62 segundos...');
-          await new Promise(resolve => setTimeout(resolve, API_RETRY_DELAY_MS));
+          const retryAt = Date.now() + API_RETRY_DELAY_MS;
+          await new Promise(resolve => {
+            function updateCountdown() {
+              const remaining = Math.max(0, Math.ceil((retryAt - Date.now()) / 1000));
+              if (remaining === 0) {
+                showToast('Reintentando automáticamente...');
+                resolve();
+                return;
+              }
+              showToast(`Límite temporal de la API. Reintentando automáticamente en ${remaining} ${remaining === 1 ? 'segundo' : 'segundos'}...`, 0);
+              setTimeout(updateCountdown, Math.min(1000, retryAt - Date.now()));
+            }
+            updateCountdown();
+          });
         }
       }
     }
@@ -2883,11 +2895,11 @@
     }
 
     let toastTimer;
-    function showToast(msg) {
+    function showToast(msg, duration = 5000) {
       toastEl.textContent = msg;
       toastEl.classList.add('show');
       clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => toastEl.classList.remove('show'), 5000);
+      if (duration > 0) toastTimer = setTimeout(() => toastEl.classList.remove('show'), duration);
     }
 
     // Eventos globales e inicio
