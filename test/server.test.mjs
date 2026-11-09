@@ -153,9 +153,10 @@ test('models endpoint returns the fixed curated catalog in order', async () => {
 
 test('model catalogs keep only free and chat-compatible entries', () => {
   assert.deepEqual(normalizeProviderModels('openrouter', { data: [
-    { id: 'free/chat:free', pricing: { prompt: '0', completion: '0' } },
-    { id: 'paid/chat', pricing: { prompt: '0.1', completion: '0.2' } },
-    { id: 'free/safety:free', pricing: { prompt: '0', completion: '0' } },
+    { id: 'free/chat:free', pricing: { prompt: '0', completion: '0' }, architecture: { output_modalities: ['text'] } },
+    { id: 'paid/chat:free', pricing: { prompt: '0.1', completion: '0.2' }, architecture: { output_modalities: ['text'] } },
+    { id: 'free/image:free', pricing: { prompt: '0', completion: '0' }, architecture: { output_modalities: ['image'] } },
+    { id: 'free/missing:free', pricing: { prompt: '0', completion: '0' } },
   ] }), ['free/chat:free']);
 
   assert.deepEqual(normalizeProviderModels('opencode', { data: [

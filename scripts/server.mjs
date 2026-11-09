@@ -63,6 +63,7 @@ if (isMainModule()) {
     try {
       if (req.url === '/api/chat') return await handleChat(req, res);
       if (req.url === '/api/models') return await handleModels(req, res);
+      if (req.url === '/api/openrouter-models') return await handleOpenRouterModels(req, res);
       if (req.url === '/api/learning') return await handleLearning(req, res);
       if (req.url === '/api/conversations') return await handleConversations(req, res);
       serveStatic(req, res);
@@ -78,14 +79,33 @@ export async function handleModels(req, res) {
   return json(res, 200, { providers }, { 'Cache-Control': 'no-store' });
 }
 
+let openRouterCatalogCache;
+export async function handleOpenRouterModels(req, res) {
+  if (req.method !== 'GET') return methodNotAllowed(res, ['GET']);
+  try {
+    if (!openRouterCatalogCache || openRouterCatalogCache.expires <= Date.now()) {
+      const response = await fetch('https://openrouter.ai/api/v1/models');
+      if (!response.ok) throw new Error(`OpenRouter respondió con ${response.status}`);
+      const payload = await response.json();
+      if (!Array.isArray(payload.data)) throw new Error('Catálogo de OpenRouter inválido');
+      openRouterCatalogCache = { models: normalizeProviderModels('openrouter', payload), expires: Date.now() + 60 * 60 * 1000 };
+    }
+    return json(res, 200, { models: openRouterCatalogCache.models }, { 'Cache-Control': 'no-store' });
+  } catch (error) {
+    return json(res, 502, { error: 'No se pudo cargar el catálogo de OpenRouter.' });
+  }
+}
+
 export function normalizeProviderModels(provider, payload) {
   const rows = payload?.data || payload?.models || [];
   let ids;
   if (provider === 'openrouter') {
     ids = rows
-      .filter(model => model.pricing?.prompt === '0' && model.pricing?.completion === '0')
+      .filter(model => model.pricing?.prompt != null && model.pricing?.completion != null
+        && Number(model.pricing.prompt) === 0 && Number(model.pricing.completion) === 0
+        && model.architecture?.output_modalities?.includes('text'))
       .map(model => model.id)
-      .filter(id => id.endsWith(':free') && !/(?:safety|guard)/i.test(id));
+      .filter(id => typeof id === 'string' && id.endsWith(':free'));
   } else if (provider === 'opencode') {
     ids = rows.map(model => model.id).filter(id => OPENCODE_FREE_MODELS.has(id));
   } else if (provider === 'groq') {

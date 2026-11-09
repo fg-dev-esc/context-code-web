@@ -223,12 +223,12 @@
     let currentConversationId = null;
 
     const PROVIDERS = [
-      { id: 'groq', name: 'Groq', color: '#a8b4f0' },
-      { id: 'openrouter', name: 'OpenRouter', color: '#b4a0d4' },
-      { id: 'opencode', name: 'OpenCode', color: '#f2f2f2' },
-      { id: 'google', name: 'Google', color: '#FADD00' },
-      { id: 'mistral', name: 'Mistral', color: '#ffab91' },
-      { id: 'cohere', name: 'Cohere', color: '#a5d6a7' },
+      { id: 'groq', name: 'Groq', color: '#a9c7ef' },
+      { id: 'openrouter', name: 'OpenRouter', color: '#c9b4e8' },
+      { id: 'opencode', name: 'OpenCode', color: '#efb4cd' },
+      { id: 'google', name: 'Google', color: '#e9d79b' },
+      { id: 'mistral', name: 'Mistral', color: '#efbc9b' },
+      { id: 'cohere', name: 'Cohere', color: '#b4d9ad' },
       // { id: 'cerebras', name: 'Cerebras', color: '#ffcc80' },
     ];
 
@@ -238,7 +238,7 @@
       { id: 'codestral-latest', label: 'codestral-latest', provider: 'mistral', tag: 'Mistral' },
       { id: 'north-mini-code-1-0', label: 'north-mini-code-1-0', provider: 'cohere', tag: 'Cohere' },
       { id: 'command-a-plus-05-2026', label: 'command-a-plus-05-2026', provider: 'cohere', tag: 'Cohere' },
-      { id: 'gemini-flash-lite-latest', label: 'gemini-flash-lite-latest', provider: 'google', tag: 'Google' },
+      { id: 'gemini-flash-latest', label: 'gemini-flash-latest', provider: 'google', tag: 'Google' },
       // { id: 'deepseek-v4-flash-free', label: 'deepseek-v4-flash-free', provider: 'opencode', tag: 'OpenCode' },
       // { id: 'mimo-v2.5-free', label: 'mimo-v2.5-free', provider: 'opencode', tag: 'OpenCode' },
       // { id: 'zai-glm-4.7', label: 'zai-glm-4.7', provider: 'cerebras', tag: 'Cerebras' },
@@ -255,6 +255,11 @@
 
     let selectedModel = MODELS.find(m => m.id === 'qwen/qwen3.8-27b');
     let availableModels = [...MODELS];
+    let openRouterModels = [];
+    let openRouterLoadedAt = 0;
+    let openRouterLoading = false;
+    let openRouterError = '';
+    let openRouterIndex = 0;
     let messages = [];
     const undoneTurns = new Map();
     let attachedImages = [];
@@ -958,6 +963,43 @@
       dropdownBody.innerHTML = '';
       const visible = availableModels;
       visible.forEach(model => dropdownBody.appendChild(createModelOption(model)));
+      const row = document.createElement('div');
+      row.className = 'model-option openrouter-row' + (selectedModel?.provider === 'openrouter' && selectedModel.id === openRouterModels[openRouterIndex] ? ' selected' : '');
+      const choose = document.createElement('button');
+      choose.type = 'button';
+      choose.className = 'openrouter-choose';
+      const dot = document.createElement('span');
+      dot.className = 'opt-dot';
+      dot.style.background = PROVIDERS.find(provider => provider.id === 'openrouter').color;
+      const modelId = openRouterModels[openRouterIndex];
+      choose.textContent = openRouterLoading ? 'Cargando OpenRouter…' : openRouterError ? 'OpenRouter · Reintentar' : modelId || 'OpenRouter · Sin modelos';
+      choose.title = openRouterError || modelId || 'OpenRouter';
+      choose.addEventListener('click', () => {
+        if (openRouterError || !openRouterLoadedAt) return void loadOpenRouterModels();
+        if (modelId) selectModel({ id: modelId, label: modelId, provider: 'openrouter', tag: 'OpenRouter' });
+      });
+      const tag = document.createElement('span');
+      tag.className = 'opt-tag';
+      tag.textContent = 'OpenRouter';
+      const arrows = document.createElement('div');
+      arrows.className = 'openrouter-arrows';
+      [[-1, '▴', 'Modelo anterior de OpenRouter'], [1, '▾', 'Modelo siguiente de OpenRouter']].forEach(([direction, symbol, label]) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = symbol;
+        button.setAttribute('aria-label', label);
+        button.disabled = openRouterModels.length < 2 || openRouterLoading || !!openRouterError;
+        button.addEventListener('click', event => {
+          event.stopPropagation();
+          event.preventDefault();
+          openRouterIndex = (openRouterIndex + direction + openRouterModels.length) % openRouterModels.length;
+          buildDropdown();
+          dropdownBody.querySelector(`[aria-label="${label}"]`)?.focus();
+        });
+        arrows.appendChild(button);
+      });
+      row.append(dot, choose, tag, arrows);
+      dropdownBody.appendChild(row);
       if (!visible.length) {
         const empty = document.createElement('div');
         empty.className = 'model-empty';
@@ -965,6 +1007,28 @@
         dropdownBody.appendChild(empty);
       }
       if (focusKey) dropdownBody.querySelector(`[data-model-key="${CSS.escape(focusKey)}"]`)?.focus();
+    }
+
+    async function loadOpenRouterModels() {
+      if (openRouterLoading || (openRouterLoadedAt && Date.now() - openRouterLoadedAt < 60 * 60 * 1000)) return;
+      openRouterLoading = true;
+      openRouterError = '';
+      buildDropdown();
+      try {
+        const response = await fetch('/api/openrouter-models');
+        if (!response.ok) throw new Error('No se pudo cargar el catálogo de OpenRouter.');
+        const data = await response.json();
+        if (!Array.isArray(data.models)) throw new Error('El catálogo de OpenRouter no es válido.');
+        const previousId = openRouterModels[openRouterIndex];
+        openRouterModels = data.models;
+        openRouterIndex = Math.max(0, openRouterModels.indexOf(previousId));
+        openRouterLoadedAt = Date.now();
+      } catch (error) {
+        openRouterError = error.message || 'No se pudo cargar el catálogo de OpenRouter.';
+      } finally {
+        openRouterLoading = false;
+        buildDropdown();
+      }
     }
 
     async function loadModels() {
@@ -987,6 +1051,7 @@
     function openDropdown(focusOption = false) {
       modelDropdown.classList.add('open');
       modelBtn.setAttribute('aria-expanded', 'true');
+      loadOpenRouterModels();
       if (focusOption) {
         const selectedKey = selectedModel && modelKey(selectedModel);
         const selectedOption = selectedKey

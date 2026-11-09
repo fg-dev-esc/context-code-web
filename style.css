@@ -293,6 +293,34 @@ select {
   padding: var(--space-2)
 }
 
+.openrouter-choose {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap
+}
+
+.openrouter-arrows {
+  display: flex;
+  flex-direction: column
+}
+
+.openrouter-arrows button {
+  border: 0;
+  padding: 0 4px;
+  background: transparent;
+  color: var(--color-text-muted);
+  line-height: 1;
+  cursor: pointer
+}
+
 .model-empty {
   padding: var(--space-4) var(--space-3);
   color: var(--color-text-muted);
